@@ -1,9 +1,10 @@
 from django.shortcuts import render, redirect
 from . import models
-from .models import User, Trip
+from .models import User, Trip, UserTrip
 from django.db.models import Q
 import bcrypt
 import datetime
+import unicodedata
 # Create your views here.
 def index(request):
     request.session['id'] = 0
@@ -61,7 +62,11 @@ def travels(request):
 def destination(request, id):
     the_trip = Trip.objects.get(id = id)
     all_users = the_trip.user.all()
-    main_user = all_users[0]
+    # main_user = all_users[0]
+    # main_user = all_users[len(all_users)-1]
+    main_user = User.objects.get(trip_creator__the_trip__id = id)
+    # main_user_id = the_trip.created_trip.the_user.id
+    # main_user = User.objects.get(id = main_user_id)
     rest_users = all_users.filter(~Q(id = main_user.id))
     print '#$#$#$#$#$#$#$#$#$#'
     print rest_users.query
@@ -77,6 +82,13 @@ def inserting(request):
     destination = request.POST.get('tdestination', '')
     description = request.POST.get('tdescription','')
     from_date = request.POST.get('from', datetime.datetime.now())
+    print "this is the from date%%%%%%%%%%%%%%%%%%%%%%%%%%"
+    print from_date
+    print datetime.datetime.now().strftime("%Y-%m-%d")
+    print "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
+    # from_date_unicode = request.POST.get('from', datetime.datetime.now())
+    # from_date = unicodedata.normalize('NFKD', from_date_unicode).encode('ascii','ignore')
+
     to_date = request.POST.get('to', datetime.datetime.now())
     if len(destination)<1 or len(description)<1:
         message = 'please make sure that your destination and description is not empty'
@@ -86,7 +98,7 @@ def inserting(request):
         message = 'to-date cannot be before from-date'
         request.session['tmessage'].insert(0,message)
         request.session['checking'] = 0
-    if from_date<str(datetime.date.today().strftime("%m-%d-%Y %H:%M:%S")):
+    if from_date<datetime.datetime.now().strftime("%Y-%m-%d"):
         message = "we don't have time machines, please pick future dates ;)"
         request.session['tmessage'].insert(0, message)
         request.session['checking'] = 0
@@ -96,6 +108,7 @@ def inserting(request):
         Trip.objects.create(destination = request.POST['tdestination'], description = request.POST['tdescription'], date_from = request.POST['from'], date_to = request.POST['to'])
         the_trip = Trip.objects.get(destination = request.POST['tdestination'])
         the_trip.user.add(the_user)
+        UserTrip.objects.create(the_user = the_user, the_trip = the_trip)
         return redirect('/travels')
     else:
         return redirect('/travels/add')
